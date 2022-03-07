@@ -1,0 +1,27 @@
+import multiprocessing as mp
+from multiprocessing.pool import ThreadPool
+from tqdm import tqdm
+from datetime import datetime
+
+class CommonUtils:
+
+    @staticmethod
+    def get_date_time(format_str: str = '%Y-%m-%d %H:%M:%S') -> str:
+        return datetime.now().strftime(format_str)
+
+    @staticmethod
+    def process_list(inputs: list, func: callable, desc='Processing list', method='multi') -> list:
+        outputs: list = []
+        if method == 'multi':
+            with ThreadPool(mp.cpu_count()) as p:
+                outputs = list(tqdm(p.imap(func, inputs), total=len(inputs), desc=desc))
+        elif method == 'single':
+            for input in tqdm(inputs, desc=desc):
+                outputs.append(func(input))
+        return outputs
+
+    @staticmethod
+    def write_output(outputs: list, output_path: str):
+        with open(output_path, 'w') as f:
+            for output in outputs:
+                f.write(output + '\n')
