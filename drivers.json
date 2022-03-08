@@ -2,5 +2,9 @@
     "mac64_chromedriver_98.0.4758.102_for_": {
         "timestamp": "08/03/2022",
         "binary_path": "./drivers/chromedriver/mac64/98.0.4758.102/chromedriver"
+    },
+    "mac64_chromedriver_99.0.4844.51_for_": {
+        "timestamp": "08/03/2022",
+        "binary_path": "./drivers/chromedriver/mac64/99.0.4844.51/chromedriver"
     }
 }
