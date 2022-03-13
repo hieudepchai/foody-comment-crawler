@@ -18,6 +18,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.remote.webelement import WebElement
+from glob import glob
 
 from common_utils import CommonUtils
 
@@ -350,7 +351,7 @@ class FoodyCommentCrawler:
             df = pd.DataFrame.from_dict(all_comments)
             df.to_csv(f'results/comments_{start}_{end}.csv', index=False)
         
-        process_and_export(food_shops=food_shops, start=251, end=500)
+        process_and_export(food_shops=food_shops, start=1501, end=1991)
         
         driver.quit()
 
@@ -365,7 +366,14 @@ class FoodyCommentCrawler:
         df = pd.DataFrame.from_dict(results)
         df.to_csv("food_shops.csv", index=False)
 
+    def merge_comment_file(self):
+        df = pd.DataFrame()
+        for f in glob('results/comments*.csv'):
+            df = df.append(pd.read_csv(f))
+        df.to_csv("results/comments.csv", index=False)
 
 if __name__ == "__main__":
     crawler = FoodyCommentCrawler()
-    crawler.go_get_comments()
+    # crawler.merge_comment_file()
+    df = pd.read_csv("results/comments.csv")
+    print(len(df))
