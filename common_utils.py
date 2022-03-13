@@ -10,14 +10,15 @@ class CommonUtils:
         return datetime.now().strftime(format_str)
 
     @staticmethod
-    def process_list(inputs: list, func: callable, desc='Processing list', method='multi') -> list:
+    def process_list(inputs: list, func: callable, desc: str ='Processing list', method: str = 'multi') -> list:
         outputs: list = []
-        if method == 'multi':
-            with ThreadPool(mp.cpu_count()) as p:
-                outputs = list(tqdm(p.imap(func, inputs), total=len(inputs), desc=desc))
-        elif method == 'single':
-            for input in tqdm(inputs, desc=desc):
-                outputs.append(func(input))
+        if inputs:
+            if method == 'multi':
+                with ThreadPool(20) as p:
+                    outputs = list(tqdm(p.imap(func, inputs), total=len(inputs), desc=desc))
+            elif method == 'single':
+                for input in tqdm(inputs, desc=desc):
+                    outputs.append(func(input))
         return outputs
 
     @staticmethod

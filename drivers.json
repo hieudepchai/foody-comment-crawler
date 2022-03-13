@@ -6,5 +6,9 @@
     "mac64_chromedriver_99.0.4844.51_for_": {
         "timestamp": "13/03/2022",
         "binary_path": "./drivers/chromedriver/mac64/99.0.4844.51/chromedriver"
+    },
+    "linux64_chromedriver_97.0.4692.71_for_": {
+        "timestamp": "13/03/2022",
+        "binary_path": "./drivers/chromedriver/linux64/97.0.4692.71/chromedriver"
     }
 }

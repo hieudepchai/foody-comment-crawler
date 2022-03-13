@@ -264,7 +264,7 @@ class FoodyCommentCrawler:
         shop_rating = shop_rating_ele.text if shop_rating_ele else ""
         shop_n_comments_eles : WebElement = self.wait_find(driver=driver, selector_str="summary", selector_type='class', num_ele='many')
         shop_n_comments = "-1"
-        if shop_n_comments:
+        if shop_n_comments_eles:
             for ele in shop_n_comments_eles:
                 if "bình luận đã chia sẻ" in ele.text:
                     shop_n_comments = ele.text.split(" ")[0]
@@ -275,7 +275,7 @@ class FoodyCommentCrawler:
             review_item_eles: List[WebElement] = self.wait_find(driver=driver, selector_str="review-item", selector_type='class', num_ele='many')
             self.scroll_to_bottom(driver)
             sleep(self.SCROLL_PAUSE_TIME)
-            if len(review_item_eles) == n_items:
+            if review_item_eles is None or len(review_item_eles) == n_items:
                 break
             n_items = len(review_item_eles)
         # comments: List[Comment] = self.get_comment_info(review_item_eles=review_item_eles, shop_name=food_shop.name, shop_url=food_shop.url , shop_rating=shop_rating, shop_n_comments=shop_n_comments)
@@ -315,15 +315,19 @@ class FoodyCommentCrawler:
 
     def get_comment_info(self, review_item_eles: WebElement, shop_name: str, shop_url: str, shop_rating: str, shop_n_comments: str) -> List[Comment]:
         def process(review_item_ele: WebElement) -> Comment:
-            commentor_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="ru-username", selector_type='class')
-            commentor: str = commentor_ele.text if commentor_ele else ""
-            content_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="rd-des", selector_type='class')
-            content_ele: WebElement = self.wait_find(driver=content_ele, selector_str="span", selector_type="tag")
-            content: str = content_ele.text if content_ele else ""
-            rating_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="review-points", selector_type='class')
-            rating: str = rating_ele.text if rating_ele else ""
-            updated_at: str = CommonUtils.get_date_time()
-            comment_info = Comment(commentor=commentor, content=content, rating=rating, updated_at=updated_at, shop_name=shop_name, shop_url=shop_url, shop_rating=shop_rating, shop_n_comments=shop_n_comments)
+            comment_info = None
+            try:
+                commentor_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="ru-username", selector_type='class')
+                commentor: str = commentor_ele.text if commentor_ele else ""
+                content_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="rd-des", selector_type='class')
+                content_ele: WebElement = self.wait_find(driver=content_ele, selector_str="span", selector_type="tag")
+                content: str = content_ele.text if content_ele else ""
+                rating_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="review-points", selector_type='class')
+                rating: str = rating_ele.text if rating_ele else ""
+                updated_at: str = CommonUtils.get_date_time()
+                comment_info = Comment(commentor=commentor, content=content, rating=rating, updated_at=updated_at, shop_name=shop_name, shop_url=shop_url, shop_rating=shop_rating, shop_n_comments=shop_n_comments)
+            except Exception as e:
+                logger.error(str(e))    
             return comment_info
         comments: List[Comment] = CommonUtils.process_list(inputs=review_item_eles, func=process, desc="Getting comment info", method='single')
         return comments
@@ -334,16 +338,19 @@ class FoodyCommentCrawler:
         # login
         self.login(driver)
         food_shops: List[FoodShop] = self.read_food_shops()
-        all_comments: List[dict] = []
+       
 
         def process_and_export(food_shops: List[FoodShop], start: int, end: int):
+            all_comments: List[dict] = []
             results: List[List[Comment]] = CommonUtils.process_list(inputs=food_shops[start:end+1], func=self.get_comments_from_one_food_shop, desc="Getting comments of all shops - Progress", method='multi')
             for r in results:
-                all_comments.extend([e.__dict__ for e in r])
+                for e in r:
+                    if e:
+                        all_comments.append(e.__dict__)
             df = pd.DataFrame.from_dict(all_comments)
             df.to_csv(f'results/comments_{start}_{end}.csv', index=False)
         
-        process_and_export(food_shops=food_shops, start=0, end=1000)
+        process_and_export(food_shops=food_shops, start=251, end=500)
         
         driver.quit()
 
