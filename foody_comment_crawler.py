@@ -257,16 +257,20 @@ class FoodyCommentCrawler:
         review_item_eles: List[WebElement] = []
         n_items: int = 0
         n_tries: int = 1
+        prev_n_review_item_ele: int = 0
         comments: List[Comment] = []
         # get shop info
         shop_rating_ele: WebElement = self.wait_find(driver=driver, selector_str="#res-summary-point > div > div.microsite-top-points-block > div.microsite-point-avg")
-        shop_rating = shop_rating_ele.text
+        shop_rating = shop_rating_ele.text if shop_rating_ele else ""
         shop_n_comments_eles : WebElement = self.wait_find(driver=driver, selector_str="summary", selector_type='class', num_ele='many')
-        for ele in shop_n_comments_eles:
-            if "bình luận đã chia sẻ" in ele.text:
-                shop_n_comments = ele.text.split(" ")[0]
-                break
+        shop_n_comments = "-1"
+        if shop_n_comments:
+            for ele in shop_n_comments_eles:
+                if "bình luận đã chia sẻ" in ele.text:
+                    shop_n_comments = ele.text.split(" ")[0]
+                    break
         # 
+        review_item_eles: List[WebElement] = []
         while 1:
             review_item_eles: List[WebElement] = self.wait_find(driver=driver, selector_str="review-item", selector_type='class', num_ele='many')
             self.scroll_to_bottom(driver)
@@ -274,11 +278,11 @@ class FoodyCommentCrawler:
             if len(review_item_eles) == n_items:
                 break
             n_items = len(review_item_eles)
-        comments: List[Comment] = self.get_comment_info(review_item_eles=review_item_eles, shop_name=food_shop.name, shop_url=food_shop.url , shop_rating=shop_rating, shop_n_comments=shop_n_comments)
+        # comments: List[Comment] = self.get_comment_info(review_item_eles=review_item_eles, shop_name=food_shop.name, shop_url=food_shop.url , shop_rating=shop_rating, shop_n_comments=shop_n_comments)
         while 1:
             try:
                 xemthem_btn_eles: List[WebElement] = self.wait_find(driver=driver, selector_str="fd-btn-more", selector_type='class', num_ele='many')
-                xemthem_btn_ele: WebElement
+                xemthem_btn_ele: WebElement = None
                 for ele in xemthem_btn_eles:
                     if ele.accessible_name == "Xem thêm bình luận":
                         xemthem_btn_ele = ele
@@ -289,9 +293,13 @@ class FoodyCommentCrawler:
                     self.scroll_to_bottom(driver)
                     sleep(self.SCROLL_PAUSE_TIME)
                     review_item_eles: List[WebElement] = self.wait_find(driver=driver, selector_str="review-item", selector_type='class', num_ele='many')
-                    if len(review_item_eles) > 0:
-                        comments: List[Comment] = self.get_comment_info(review_item_eles=review_item_eles, shop_name=food_shop.name, shop_url=food_shop.url, shop_rating=shop_rating, shop_n_comments=shop_n_comments)
-                    logger.info(f"{len(review_item_eles)} / {self.MAX_ITEMS} ~ {(len(review_item_eles)*100/int(shop_n_comments)):.2f} % items loaded")
+                    if len(review_item_eles) > prev_n_review_item_ele:
+                        prev_n_review_item_ele = len(review_item_eles)
+                    else:
+                        break
+                    # if len(review_item_eles) > 0:
+                    #     comments: List[Comment] = self.get_comment_info(review_item_eles=review_item_eles, shop_name=food_shop.name, shop_url=food_shop.url, shop_rating=shop_rating, shop_n_comments=shop_n_comments)
+                    logger.info(f"{len(review_item_eles)} / {int(shop_n_comments)} ~ {(len(review_item_eles)*100/int(shop_n_comments)):.2f} % items loaded")
                 else:
                     break
                 n_tries = 1
@@ -301,22 +309,23 @@ class FoodyCommentCrawler:
                     break
                 n_tries += 1
                 continue
+        comments: List[Comment] = self.get_comment_info(review_item_eles=review_item_eles, shop_name=food_shop.name, shop_url=food_shop.url, shop_rating=shop_rating, shop_n_comments=shop_n_comments)
         driver.quit()
         return comments
 
     def get_comment_info(self, review_item_eles: WebElement, shop_name: str, shop_url: str, shop_rating: str, shop_n_comments: str) -> List[Comment]:
         def process(review_item_ele: WebElement) -> Comment:
-            commentor_ele: WebElement = review_item_ele.find_element_by_class_name("ru-username")
-            commentor: str = commentor_ele.text
-            content_ele: WebElement = review_item_ele.find_element_by_class_name("rd-des")
-            content_ele = content_ele.find_element_by_tag_name("span")
-            content: str = content_ele.text
-            rating_ele: WebElement = review_item_ele.find_element_by_class_name("review-points")
-            rating: str = rating_ele.text
+            commentor_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="ru-username", selector_type='class')
+            commentor: str = commentor_ele.text if commentor_ele else ""
+            content_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="rd-des", selector_type='class')
+            content_ele: WebElement = self.wait_find(driver=content_ele, selector_str="span", selector_type="tag")
+            content: str = content_ele.text if content_ele else ""
+            rating_ele: WebElement = self.wait_find(driver=review_item_ele, selector_str="review-points", selector_type='class')
+            rating: str = rating_ele.text if rating_ele else ""
             updated_at: str = CommonUtils.get_date_time()
             comment_info = Comment(commentor=commentor, content=content, rating=rating, updated_at=updated_at, shop_name=shop_name, shop_url=shop_url, shop_rating=shop_rating, shop_n_comments=shop_n_comments)
             return comment_info
-        comments: List[Comment] = CommonUtils.process_list(inputs=review_item_eles, func=process, desc="Getting comment info", method='multi')
+        comments: List[Comment] = CommonUtils.process_list(inputs=review_item_eles, func=process, desc="Getting comment info", method='single')
         return comments
 
     def go_get_comments(self):
@@ -326,11 +335,16 @@ class FoodyCommentCrawler:
         self.login(driver)
         food_shops: List[FoodShop] = self.read_food_shops()
         all_comments: List[dict] = []
-        results: List[List[Comment]] = CommonUtils.process_list(inputs=food_shops, func=self.get_comments_from_one_food_shop, desc="Getting comments", method='multi')
-        for r in results:
-            all_comments.extend([e.__dict__ for e in r])
-        df = pd.DataFrame.from_dict(all_comments)
-        df.to_csv('results/comments.csv', index=False)
+
+        def process_and_export(food_shops: List[FoodShop], start: int, end: int):
+            results: List[List[Comment]] = CommonUtils.process_list(inputs=food_shops[start:end+1], func=self.get_comments_from_one_food_shop, desc="Getting comments of all shops - Progress", method='multi')
+            for r in results:
+                all_comments.extend([e.__dict__ for e in r])
+            df = pd.DataFrame.from_dict(all_comments)
+            df.to_csv(f'results/comments_{start}_{end}.csv', index=False)
+        
+        process_and_export(food_shops=food_shops, start=0, end=1000)
+        
         driver.quit()
 
     def test(self):
